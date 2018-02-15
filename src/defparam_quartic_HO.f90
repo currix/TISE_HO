@@ -58,6 +58,7 @@ MODULE quartic_HO
   CHARACTER(LEN=75) :: file_name
   !
   ! OpenMP Definitions
+  INTEGER(KIND = I4B) :: N_threads = 1
   !
 CONTAINS
   !
@@ -285,18 +286,38 @@ CONTAINS
     !
     !
     !
-    IF (Iprint > 1) WRITE(*,*) "Operator number 1 :: a^d a"
+    !$OMP PARALLEL SECTIONS DEFAULT(NONE) PRIVATE(state_index, nval) &
+    !$OMP & SHARED(N_val, alpha_value, beta_value, gamma_value, Ham_quartic_mat, Iprint)
+    !
+    !$OMP SECTION
+#if _OPENMP
+    IF (Iprint > 1) WRITE(*,*) "Operators number 1, 3 :: a^d a,  and zero energy, Thread Number ", &
+         OMP_GET_THREAD_NUM() 
+#else
+    IF (Iprint > 1) WRITE(*,*) "Operators number 1, 3 :: a^d a, (a^d a)**2, and zero energy"
+#endif
     !
     DO state_index = 1, N_val
        !
        nval = REAL(state_index-1,DP)
+       !
        Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
-            (3.0_DP*alpha_value + beta_value + 0.5_DP)*nval
+            !
+            (3.0_DP*alpha_value + beta_value + 0.5_DP)*nval + &  ! number operator n
+            !
+            1.5_DP*alpha_value*(nval-1.0_DP)*nval + &          ! (a^d a)**2 ( state_index = 1, 2 terms are zero)
+            !
+            0.75_DP*alpha_value + 0.5_DP*beta_value + 0.25_DP    ! Zero energy
        !
     ENDDO
     !
     !
+    !$OMP SECTION
+#if _OPENMP
+    IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4 a**4, Thread Number ", OMP_GET_THREAD_NUM() 
+#else
     IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4 a**4"
+#endif
     !
     DO state_index = 1, N_val - 4
        !
@@ -307,40 +328,32 @@ CONTAINS
     ENDDO
     !
     !
-    IF (Iprint > 1) WRITE(*,*) "Operator number 3 :: (a^d a)**2"
-    !
-    DO state_index = 3, N_val
-       !
-       nval = REAL(state_index-1,DP)
-       Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
-            1.5_DP*alpha_value*(nval-1.0_DP)*nval
-       !
-    ENDDO
-    !
-    !
-    IF (Iprint > 1) WRITE(*,*) "Operator number 4 :: (a^d)**3 a"
-    !
-    DO state_index = 2, N_val - 2
-       !
-       nval = REAL(state_index-1,DP)
-       Ham_quartic_mat(state_index, state_index + 2) = Ham_quartic_mat(state_index, state_index + 2) + &
-            alpha_value*nval*SQRT((nval+1.0_DP)*(nval + 2.0_DP))
-       !
-    ENDDO
-    !
-    !
-    IF (Iprint > 1) WRITE(*,*) "Operator number 5 :: (a^d)**2"
+    !$OMP SECTION
+#if _OPENMP
+    IF (Iprint > 1) WRITE(*,*) "Operator number 4 and 5 :: (a^d)**3 a and (a^d)**2, Thread Number ", &
+         OMP_GET_THREAD_NUM() 
+#else
+    IF (Iprint > 1)  WRITE(*,*) "Operators number 4 and 5 :: (a^d)**3 a and (a^d)**2"
+#endif
     !
     DO state_index = 1, N_val - 2
        !
        nval = REAL(state_index-1,DP)
        Ham_quartic_mat(state_index, state_index + 2) = Ham_quartic_mat(state_index, state_index + 2) + &
-            (1.5_DP*alpha_value + 0.5_DP*beta_value - 0.25_DP)*SQRT((nval+1.0_DP)*(nval + 2.0_DP))
+            !
+            alpha_value*nval*SQRT((nval+1.0_DP)*(nval + 2.0_DP)) + & ! (a^d)**3 a (state_index = 1 is zero)
+            !
+            (1.5_DP*alpha_value + 0.5_DP*beta_value - 0.25_DP)*SQRT((nval+1.0_DP)*(nval + 2.0_DP)) ! (a^d)**2
        !
     ENDDO
     !
     !
-    IF (Iprint > 1) WRITE(*,*) "Operator number 6 :: a^d"
+    !$OMP SECTION
+#if _OPENMP
+    IF (Iprint > 1) WRITE(*,*) "Operator number 6 :: a^d, Thread Number ", OMP_GET_THREAD_NUM() 
+#else
+    IF (Iprint > 1)  WRITE(*,*) "Operator number 6 :: a^d"
+#endif
     !
     DO state_index = 1, N_val - 1
        !
@@ -350,17 +363,7 @@ CONTAINS
        !
     ENDDO
     !
-    ! 
-    IF (Iprint > 1) WRITE(*,*) "Operator number 7 :: "
-    !
-    DO state_index = 1, N_val
-       !
-       nval = REAL(state_index-1,DP)
-       Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
-            0.75_DP*alpha_value + 0.5_DP*beta_value + 0.25_DP    
-       !
-    ENDDO
-    !
+    !$OMP END PARALLEL SECTIONS
     !
   END SUBROUTINE QUARTIC_HAMILTONIAN_HO
   !
@@ -590,8 +593,18 @@ CONTAINS
        omegaeff_vec(state_index) = eigenval_vec(state_index+1) - eigenval_vec(state_index)
     ENDDO
     !
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(state_index) &
+    !$OMP & SHARED(dim, n_states, eigenvec_arr, ipr_vec, Husimi_ipr_vec, expected_n_vec, expected_x_vec, expected_x2_vec, Iprint)
+    !
     ! ipr, Husimi, <n>, <x>, and <x2>
     DO state_index = 1, n_states
+#if _OPENMP
+       IF (Iprint > 1) WRITE(*,*) "ipr, Husimi, <n>, <x>, and <x2>, state ", state_index, &
+            " Thread Number  ", OMP_GET_THREAD_NUM() 
+#else
+       IF (Iprint > 1) WRITE(*,*) "ipr, Husimi, <n>, <x>, and <x2>, state ", state_index
+#endif
+       !
        ipr_vec(state_index) = Inv_Part_Ratio(eigenvec_arr(:,state_index))
        !       Husimi_ipr_vec(state_index) = IPR_Husimi(dim, eigenvec_arr(:,state_index))
        Husimi_ipr_vec(state_index) = 0.0_DP
@@ -599,6 +612,8 @@ CONTAINS
        expected_x_vec(state_index) = Exp_Value_x(dim, eigenvec_arr(:,state_index))
        expected_x2_vec(state_index) = Exp_Value_x2(dim, eigenvec_arr(:,state_index))
     ENDDO
+    !
+    !$OMP END PARALLEL DO 
     !
   END SUBROUTINE Calculations_Sc
   !

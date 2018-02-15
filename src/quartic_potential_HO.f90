@@ -58,6 +58,11 @@ PROGRAM quartic_eigensystem_HO
   NAMELIST/par_0/ HO_Dimension, benchmark, benchmark_total_iter
   NAMELIST/par_1/ s_value, A_value, B_value, C_value
   !
+  ! Number of Threads
+#if _OPENMP
+  N_threads = OMP_GET_NUM_THREADS()
+  IF (Iprint > 1) WRITE(*,*) "OpenMP version. Number of Threads :: ", N_threads
+#endif
   !
   ! Read parameters
   !
