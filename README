@@ -1,0 +1,30 @@
+Fortran programs for solving the 1D TISE for a potential of the form
+
+a X^4 + b X^2 + c X
+
+using a HO basis.
+
+by Currix TM
+
+Allows performance benchmarking, search for convergence in eigenvalues, and
+computes:
+
+Eigenvalues
+Eigenstates
+Participation Ratio
+Expected values <X> and <X^2>
+
+Install
+
+From the src directory:
+
+$ make all
+
+Programs
+
+quartic_HO_energies_gfortran
+
+
+The program user's guide will be found in the doc directory in pdf,
+html, and txt formats.
+

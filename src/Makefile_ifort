@@ -1,0 +1,56 @@
+#
+# Makefile for Quantum Cusp Problem
+#
+# by Currix TM
+#
+BINPATH = ../bin/
+#
+########################################################################
+quartic_HAM_HO_SRC = nrtype.f90 defparam_quartic_HO.f90 quartic_potential_HO.f90
+quartic_HAM_HO_OBJ = $(quartic_HAM_HO_SRC:.f90=.o)
+#####################################################################################################
+##
+.SUFFIXES: .o .f90 .oOMP 
+###
+FC = ifort
+#
+CPUFLAGS = -fpp
+#
+FOPTIONS = -no-wrap-margin -qopt-report=5 -qopt-report-file=$@.optrpt
+# Gaff paths
+MODLIB   =  -I/opt/intel/compilers_and_libraries/linux/mkl/include/intel64/lp64/	
+MKLROOT = /opt/intel/compilers_and_libraries/linux/mkl
+LIBS = /opt/intel/compilers_and_libraries/linux/mkl/lib/intel64/libmkl_lapack95_lp64.a -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+ifdef USE_LAPTOP
+# Laptop paths
+MODLIB   =  -I/usr/local/intel/compilers_and_libraries/linux/mkl/include/intel64/lp64/	
+MKLROOT = /usr/local/intel/compilers_and_libraries/linux/mkl
+LIBS = /usr/local/intel/compilers_and_libraries/linux/mkl/lib/intel64/libmkl_lapack95_lp64.a -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+endif
+LIB_INTLIB = -lintlib
+######################################################################################################
+all: quartic_HO_energies
+.PHONY : all
+#################################################################
+.f90.o:
+	$(info )
+	$(info Compiling single thread object file:)
+	$(FC) -c $(CPUFLAGS) $(FOPTIONS) $(MODLIB) -o "$@" "$<"
+#################################################################
+.f90.oOMP:
+	$(info )
+	$(info Compiling multi thread object file:)
+	$(FC) -c -fopenmp $(CPUFLAGS) $(FOPTIONS) $(MODLIB) -o "$@" "$<"
+#################################################################
+#
+quartic_HO_energies: $(quartic_HAM_HO_OBJ) Makefile_ifort 
+	$(info )
+	$(info Linking quartic_HO_energies single thread executable:)
+	$(FC) $(FOPTIONS) -o $(BINPATH)/$@_$(FC) $(quartic_HAM_HO_OBJ) $(LIBS) 
+#######################
+clean:
+	@rm -f  *.o *.mod $(BINPATH)/quartic_HO_energies_$(FC)
+
+
+
+
