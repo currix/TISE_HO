@@ -14,7 +14,7 @@ quartic_HAM_HO_OBJ = $(quartic_HAM_HO_SRC:.f90=.o)
 FC = gfortran
 FOPT	= -O3 -Wall
 PREP = -cpp
-#OPT	= -O3 -ffast-math
+#
 MODLIB   = -I/usr/local/lib/lapack95/lapack95_modules -I/usr/local/include/lapack95_modules
 LAPACK95 = -L/usr/local/lib/lapack95 -llapack95 -L/usr/local/lib -llapack95
 LAPACK77 = -llapack

@@ -2,6 +2,10 @@ MODULE quartic_HO
   !
   USE nrtype
   !
+#if _OPENMP
+  USE OMP_LIB
+#endif
+  !
   IMPLICIT NONE
   !
   ! Parameters
@@ -52,6 +56,8 @@ MODULE quartic_HO
   ! Flag to control storing results
   LOGICAL :: save_output
   CHARACTER(LEN=75) :: file_name
+  !
+  ! OpenMP Definitions
   !
 CONTAINS
   !
@@ -269,103 +275,91 @@ CONTAINS
     REAL(KIND = DP) ::  alpha_value, beta_value, gamma_value ! Scaled Hamiltonian parameters
     !
     !
-    INTEGER(KIND = I4B) :: oper, state_index
+    INTEGER(KIND = I4B) :: state_index
     REAL(KIND = DP) :: nval
     !
     !
     !
     ! Build Hamiltonian
-    operator : DO oper = 1, 7
-       !
-       IF (Iprint > 1) WRITE(*,*) "Operator number ", oper
-       !
-       SELECT CASE (oper)
-          !
-       CASE (1) ! n ---> DIAGONAL
-          !
-          DO state_index = 1, N_val
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
-                  (3.0_DP*alpha_value + beta_value + 0.5_DP)*nval
-             !
-          ENDDO
-          !
-          !
-       CASE (2) ! (a^dag)^4 
-          !
-          DO state_index = 1, N_val - 4
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index + 4) = Ham_quartic_mat(state_index, state_index + 4 ) + &
-                  0.25_DP*alpha_value*SQRT((nval+1.0_DP)*(nval+2.0_DP)*(nval+3.0_DP)*(nval+4.0_DP))
-             !
-          ENDDO
-          !
-          !
-       CASE (3) ! (a^dag)^2a^2 
-          !
-          DO state_index = 3, N_val
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
-                  1.5_DP*alpha_value*(nval-1.0_DP)*nval
-             !
-          ENDDO
-          !
-          !
-       CASE (4) ! (a^dag)^3a 
-          !
-          DO state_index = 2, N_val - 2
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index + 2) = Ham_quartic_mat(state_index, state_index + 2) + &
-                  alpha_value*nval*SQRT((nval+1.0_DP)*(nval + 2.0_DP))
-             !
-          ENDDO
-          !
-          !
-       CASE (5) ! (a^dag)^2 
-          !
-          DO state_index = 1, N_val - 2
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index + 2) = Ham_quartic_mat(state_index, state_index + 2) + &
-                  (1.5_DP*alpha_value + 0.5_DP*beta_value - 0.25_DP)*SQRT((nval+1.0_DP)*(nval + 2.0_DP))
-             !
-          ENDDO
-          !
-          !
-       CASE (6) ! (a^dag) 
-          !
-          DO state_index = 1, N_val - 1
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index + 1) = Ham_quartic_mat(state_index, state_index + 1) + &
-                  gamma_value*SQRT(0.5_DP)*SQRT(nval+1.0_DP)
-             !
-          ENDDO
-          !
-          !
-       CASE (7) ! Constant term
-          !
-          DO state_index = 1, N_val
-             !
-             nval = REAL(state_index-1,DP)
-             Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
-                  1.5_DP*alpha_value + 0.5_DP*beta_value + 0.25_DP    
-             !
-          ENDDO
-          !
-          !
-       CASE DEFAULT
-          !
-          STOP 'You should not be here. Invalid nonzero parameter number. Sayonara baby.'
-          !
-       END SELECT
-       !
-    ENDDO operator
     !
+    !
+    !
+    !
+    IF (Iprint > 1) WRITE(*,*) "Operator number 1 :: a^d a"
+    !
+    DO state_index = 1, N_val
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
+            (3.0_DP*alpha_value + beta_value + 0.5_DP)*nval
+       !
+    ENDDO
+    !
+    !
+    IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4 a**4"
+    !
+    DO state_index = 1, N_val - 4
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index + 4) = Ham_quartic_mat(state_index, state_index + 4 ) + &
+            0.25_DP*alpha_value*SQRT((nval+1.0_DP)*(nval+2.0_DP)*(nval+3.0_DP)*(nval+4.0_DP))
+       !
+    ENDDO
+    !
+    !
+    IF (Iprint > 1) WRITE(*,*) "Operator number 3 :: (a^d a)**2"
+    !
+    DO state_index = 3, N_val
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
+            1.5_DP*alpha_value*(nval-1.0_DP)*nval
+       !
+    ENDDO
+    !
+    !
+    IF (Iprint > 1) WRITE(*,*) "Operator number 4 :: (a^d)**3 a"
+    !
+    DO state_index = 2, N_val - 2
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index + 2) = Ham_quartic_mat(state_index, state_index + 2) + &
+            alpha_value*nval*SQRT((nval+1.0_DP)*(nval + 2.0_DP))
+       !
+    ENDDO
+    !
+    !
+    IF (Iprint > 1) WRITE(*,*) "Operator number 5 :: (a^d)**2"
+    !
+    DO state_index = 1, N_val - 2
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index + 2) = Ham_quartic_mat(state_index, state_index + 2) + &
+            (1.5_DP*alpha_value + 0.5_DP*beta_value - 0.25_DP)*SQRT((nval+1.0_DP)*(nval + 2.0_DP))
+       !
+    ENDDO
+    !
+    !
+    IF (Iprint > 1) WRITE(*,*) "Operator number 6 :: a^d"
+    !
+    DO state_index = 1, N_val - 1
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index + 1) = Ham_quartic_mat(state_index, state_index + 1) + &
+            gamma_value*SQRT(0.5_DP)*SQRT(nval+1.0_DP)
+       !
+    ENDDO
+    !
+    ! 
+    IF (Iprint > 1) WRITE(*,*) "Operator number 7 :: "
+    !
+    DO state_index = 1, N_val
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index) = Ham_quartic_mat(state_index, state_index) + &
+            0.75_DP*alpha_value + 0.5_DP*beta_value + 0.25_DP    
+       !
+    ENDDO
     !
     !
   END SUBROUTINE QUARTIC_HAMILTONIAN_HO
