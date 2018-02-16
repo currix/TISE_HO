@@ -69,6 +69,7 @@ CONTAINS
 #endif
     !
     IMPLICIT NONE
+    !
     INTEGER(KIND = I4B), INTENT(IN) :: HO_Dimension ! Dimension of the truncated HO basis
     INTEGER(KIND = I4B), INTENT(IN) :: output_states ! States saved and considered after diagonalization
     !
@@ -660,6 +661,8 @@ CONTAINS
     !
     ! TODO can be optimized calculating and saving factor values. Change arguments structure (n1+n3, 
     !
+    IMPLICIT NONE
+    !
     INTEGER(KIND = I4B), DIMENSION(1:4), INTENT(IN) :: nvals
     !
     REAL(KIND = DP) :: gamma_quot_ipr
@@ -694,6 +697,8 @@ CONTAINS
     !
     ! Value of ln[Gamma(z)]. For z > gamma_limit compute
     ! the asymptotic expansion of Ln(Gamma(z)) Abram. 6.1.41
+    !
+    IMPLICIT NONE
     !
     REAL(KIND = DP), intent(in) :: z
     !
@@ -864,6 +869,8 @@ CONTAINS
     ! Y_vector            :: Ordinate (Vector) data
     ! dim_X               :: Vector dimension
     !
+    IMPLICIT NONE
+    !
     CHARACTER(LEN=*), INTENT(IN) :: filename
     !
     REAL(KIND = DP), DIMENSION(:), OPTIONAL, INTENT(IN) :: X_vector
@@ -1011,5 +1018,7 @@ CONTAINS
     CLOSE(UNIT = 1000)
     !
   END SUBROUTINE SAVE_OUTPUT_ARRAY
+  !
+  !
   !
 END MODULE quartic_HO

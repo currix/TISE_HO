@@ -23,6 +23,9 @@ PROGRAM quartic_eigensystem_HO
   !
   USE quartic_HO
   !
+  USE ho_mod_f
+  !
+  !
   ! Lapack 95
 #ifdef  __GFORTRAN__
   ! gfortran
@@ -57,6 +60,7 @@ PROGRAM quartic_eigensystem_HO
   NAMELIST/par_aux/ Iprint, eigenvec, excitation, save_output, output_states, convergence, dim_step, delta_energy
   NAMELIST/par_0/ HO_Dimension, benchmark, benchmark_total_iter
   NAMELIST/par_1/ s_value, A_value, B_value, C_value
+  NAMELIST/par_2/ avec_X_calc, avec_X_states, X_min, X_max, dim_X 
   !
   ! Number of Threads
 #if _OPENMP
@@ -74,12 +78,16 @@ PROGRAM quartic_eigensystem_HO
   IF (Iprint > 1) PRINT 20
   READ(UNIT = *, NML = par_1)
   !
+  IF (Iprint > 1) PRINT 30
+  READ(UNIT = *, NML = par_2)
+  !
   !
   IF (Iprint > 1) THEN
      WRITE(UNIT = *, FMT = 5) Iprint, eigenvec, excitation, save_output, output_states
      IF (convergence) WRITE(UNIT = *, FMT = 6) convergence, dim_step, delta_energy
      WRITE(UNIT = *, FMT = 15) HO_Dimension, benchmark, benchmark_total_iter
      WRITE(UNIT = *, FMT = 25) s_value, A_value, B_value, C_value
+     WRITE(UNIT = *, FMT = 35) avec_X_calc, avec_X_states, X_min, X_max, dim_X 
   ENDIF
   !
   IF (save_output .AND. output_states == 0) output_states =  HO_Dimension
@@ -210,6 +218,10 @@ PROGRAM quartic_eigensystem_HO
      ENDIF
      !
      !
+     ! Compute spatial dependence of eigenvectors
+     IF (avec_X_calc) CALL  EIGENVEC_X(HO_dimension, s_value, alpha_value, beta_value, gamma_value, &
+          eigenval_vec, Ham_quartic_mat, Iprint)
+     !
      ! Deallocate arrays
 #ifndef  __GFORTRAN__
      CALL Deallocate_arrays_sub(eigenvec, save_output)
@@ -263,6 +275,9 @@ PROGRAM quartic_eigensystem_HO
 20 FORMAT(1X, "Reading  kval, aval, bval")
 25 FORMAT(1X, "s_value = ", ES14.7, "; A_value = ", ES14.7, /, &
         "B_value = ", ES14.7, "; C_value = ", ES14.7)
+30 FORMAT(1X, "Reading avec_X_calc, avec_X_states, X_min, X_max, dim_X ")
+35 FORMAT(1X, "avec_X_calc = ", L2, "; avec_X_states = ", I6, "; X_min = ", ES14.7, &
+        "; X_max = ", ES14.7, "; dim_X = ", ES14.7) 
   !
   !
   !

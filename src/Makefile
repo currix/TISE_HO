@@ -5,7 +5,7 @@
 #
 BINPATH = ../bin/
 ####################################################################
-quartic_HAM_HO_SRC = nrtype.f90 defparam_quartic_HO.f90 quartic_potential_HO.f90
+quartic_HAM_HO_SRC = nrtype.f90 defparam_quartic_HO.f90 ho_mod_f.f90 quartic_potential_HO.f90
 #
 quartic_HAM_HO_OBJ = $(quartic_HAM_HO_SRC:.f90=.o)
 #
@@ -22,10 +22,10 @@ MODLIB   = -I/usr/local/lib/lapack95/lapack95_modules -I/usr/local/include/lapac
 LAPACK95 = -L/usr/local/lib/lapack95 -llapack95 -L/usr/local/lib -llapack95
 LAPACK77 = -llapack
 BLAS     = -lblas
-#
-LIBS     = $(LAPACK95)  $(LAPACK77) $(BLAS)
 # 
 LIB_INTLIB = -lintlib
+#
+LIBS     = $(LAPACK95)  $(LAPACK77) $(BLAS) $(LIB_INTLIB)
 ######################################################################################################
 all: quartic_HO_energies quartic_HO_energies_openmp
 #################################################################
