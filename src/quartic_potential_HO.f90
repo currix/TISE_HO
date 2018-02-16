@@ -3,7 +3,7 @@ PROGRAM quartic_eigensystem_HO
   ! Eigenvalues and eigenstates of a Hamiltonian with a quartic potential in a HO truncated basis
   !
   ! Potential:
-  ! V_C(x) = A\, x^4 + B\, x^2 + C\,x^n~,
+  ! V_C(x) = A\, x^4 + B\, x^2 + C\,x + D\,x^3~,
   !
   !\begin{align}
   ! \hat{\cal H}^{(n=1)} =& \epsilon_0 + \left( 3\alpha + \beta + \frac{1}{2}\right)\hat n
@@ -44,7 +44,7 @@ PROGRAM quartic_eigensystem_HO
   IMPLICIT NONE
   !
   !
-  REAL(KIND = DP) ::  alpha_value, beta_value, gamma_value ! Scaled Hamiltonian parameters
+  REAL(KIND = DP) ::  alpha_value, beta_value, gamma_value, delta_value ! Scaled Hamiltonian parameters
   !
   INTEGER(KIND = I4B) :: output_states ! Number of states saved (If 0 then info about all the states is saved)
   
@@ -59,7 +59,7 @@ PROGRAM quartic_eigensystem_HO
   ! NAMELISTS
   NAMELIST/par_aux/ Iprint, eigenvec, excitation, save_output, output_states, convergence, dim_step, delta_energy
   NAMELIST/par_0/ HO_Dimension, benchmark, benchmark_total_iter
-  NAMELIST/par_1/ s_value, A_value, B_value, C_value
+  NAMELIST/par_1/ s_value, A_value, B_value, C_value, D_value
   NAMELIST/par_2/ avec_X_calc, avec_X_states, X_min, X_max, dim_X 
   !
   ! Number of Threads
@@ -86,7 +86,7 @@ PROGRAM quartic_eigensystem_HO
      WRITE(UNIT = *, FMT = 5) Iprint, eigenvec, excitation, save_output, output_states
      IF (convergence) WRITE(UNIT = *, FMT = 6) convergence, dim_step, delta_energy
      WRITE(UNIT = *, FMT = 15) HO_Dimension, benchmark, benchmark_total_iter
-     WRITE(UNIT = *, FMT = 25) s_value, A_value, B_value, C_value
+     WRITE(UNIT = *, FMT = 25) s_value, A_value, B_value, C_value, D_value
      WRITE(UNIT = *, FMT = 35) avec_X_calc, avec_X_states, X_min, X_max, dim_X 
   ENDIF
   !
@@ -119,11 +119,12 @@ PROGRAM quartic_eigensystem_HO
      alpha_value =  0.5_DP*A_value*s_value**2
      beta_value = 0.5_DP*B_value
      gamma_value = 0.5_DP*C_value/s_value
+     delta_value = 0.5_DP*D_value*s_value
      !
      IF (convergence) THEN
         ! Check eigenvalues convergence and fix new HO_dimension
         CALL Convergence_check(HO_Dimension, dim_step, delta_energy, output_states, &
-             alpha_value, beta_value, gamma_value)
+             alpha_value, beta_value, gamma_value, delta_value)
      ENDIF
      ! Allocate arrays
 #ifndef  __GFORTRAN__
@@ -132,7 +133,7 @@ PROGRAM quartic_eigensystem_HO
      CALL Allocate_arrays_sub(HO_Dimension, output_states, save_output)    
 #endif
      ! BUILD HAMILTONIAN
-     CALL QUARTIC_HAMILTONIAN_HO(HO_Dimension, Ham_quartic_mat, alpha_value, beta_value, gamma_value)
+     CALL QUARTIC_HAMILTONIAN_HO(HO_Dimension, Ham_quartic_mat, alpha_value, beta_value, gamma_value, delta_value)
      !      
      ! Diagonalize Hamiltonian matrix (LAPACK95)
      IF (eigenvec) THEN
@@ -219,7 +220,7 @@ PROGRAM quartic_eigensystem_HO
      !
      !
      ! Compute spatial dependence of eigenvectors
-     IF (avec_X_calc) CALL  EIGENVEC_X(HO_dimension, s_value, alpha_value, beta_value, gamma_value, &
+     IF (avec_X_calc) CALL  EIGENVEC_X(HO_dimension, s_value, alpha_value, beta_value, gamma_value, delta_value, &
           eigenval_vec, Ham_quartic_mat, Iprint)
      !
      ! Deallocate arrays
@@ -240,7 +241,8 @@ PROGRAM quartic_eigensystem_HO
              WRITE(UNIT = *, FMT = *) " Time :: Hamilt. building and diagonal. ", time_check - time_check_ref
         ! 5+12+5+8+12+8+5 = 55*dim flop hamiltonian building
         ! (4/3)*dim**3 flop Householder reflections to tridiagonal form
-        ! 6*dim**3  QR algorithm 
+        ! 6*dim**3  QR algorithm
+        !!!! This needs to be updated.
         benchmark_MFLOPS(benchmark_iter) = &
              1.0D-6*(55.0_DP*HO_Dimension + (4.0_DP/3.0_DP + 6.0)*(1.0_DP*HO_Dimension)**3)/(time_check-time_check_ref)
         IF (Iprint > 0) WRITE(UNIT = *, FMT = *) time_check-time_check_ref, benchmark_MFLOPS(benchmark_iter)

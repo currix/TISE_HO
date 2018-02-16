@@ -15,7 +15,7 @@ MODULE quartic_HO
   !
   INTEGER(KIND = I4B), PARAMETER :: nHamoper = 3_I4B ! Number of Hamiltonian operators
   !
-  REAL(KIND = DP) ::  s_value, A_value, B_value, C_value ! Scale and Hamiltonian parameters 
+  REAL(KIND = DP) ::  s_value, A_value, B_value, C_value, D_value ! Scale and Hamiltonian parameters 
   ! 
   LOGICAL :: eigenvec ! If .T. compute eigenvalues and eigenvectors
   LOGICAL :: excitation ! If .T. compute excitation energy with respect to L = 0 g.s.
@@ -253,11 +253,11 @@ CONTAINS
    END SUBROUTINE Deallocate_arrays_sub
    !
    !
-   SUBROUTINE QUARTIC_HAMILTONIAN_HO(N_val, Ham_quartic_mat, alpha_value, beta_value, gamma_value) 
+   SUBROUTINE QUARTIC_HAMILTONIAN_HO(N_val, Ham_quartic_mat, alpha_value, beta_value, gamma_value, delta_value) 
     !
     ! Subroutine to build the Hamiltonian for a Quartic potential
     ! Potential:
-    ! V_C(x) = A\, x^4 + B\, x^2 + C\,x^n~,
+    ! V_C(x) = A\, x^4 + B\, x^2 + C\,x + D\,x^3~,
     !
     ! n = 1 case
     !\begin{align}
@@ -274,7 +274,7 @@ CONTAINS
     !
     REAL(KIND = DP), DIMENSION(:,:), INTENT(OUT) :: Ham_quartic_mat ! Hamiltonian matrix
     !
-    REAL(KIND = DP) ::  alpha_value, beta_value, gamma_value ! Scaled Hamiltonian parameters
+    REAL(KIND = DP) ::  alpha_value, beta_value, gamma_value, delta_value ! Scaled Hamiltonian parameters
     !
     !
     INTEGER(KIND = I4B) :: state_index
@@ -288,7 +288,7 @@ CONTAINS
     !
     !
     !$OMP PARALLEL SECTIONS DEFAULT(NONE) PRIVATE(state_index, nval) &
-    !$OMP & SHARED(N_val, alpha_value, beta_value, gamma_value, Ham_quartic_mat, Iprint)
+    !$OMP & SHARED(N_val, alpha_value, beta_value, gamma_value, delta_value, Ham_quartic_mat, Iprint)
     !
     !$OMP SECTION
 #if _OPENMP
@@ -315,9 +315,9 @@ CONTAINS
     !
     !$OMP SECTION
 #if _OPENMP
-    IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4 a**4, Thread Number ", OMP_GET_THREAD_NUM() 
+    IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4, Thread Number ", OMP_GET_THREAD_NUM() 
 #else
-    IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4 a**4"
+    IF (Iprint > 1) WRITE(*,*) "Operator number 2 :: (a^d)**4"
 #endif
     !
     DO state_index = 1, N_val - 4
@@ -351,16 +351,33 @@ CONTAINS
     !
     !$OMP SECTION
 #if _OPENMP
-    IF (Iprint > 1) WRITE(*,*) "Operator number 6 :: a^d, Thread Number ", OMP_GET_THREAD_NUM() 
+    IF (Iprint > 1) WRITE(*,*) "Operators number 6 and 8 :: a^d and (a^d)**2a, Thread Number ", &
+         OMP_GET_THREAD_NUM() 
 #else
-    IF (Iprint > 1)  WRITE(*,*) "Operator number 6 :: a^d"
+    IF (Iprint > 1)  WRITE(*,*) "Operators number 6 and 8 :: a^d and (a^d)**2a"
 #endif
     !
     DO state_index = 1, N_val - 1
        !
        nval = REAL(state_index-1,DP)
        Ham_quartic_mat(state_index, state_index + 1) = Ham_quartic_mat(state_index, state_index + 1) + &
-            gamma_value*SQRT(0.5_DP)*SQRT(nval+1.0_DP)
+            ((gamma_value*SQRT(0.5_DP)+3.0_DP*delta_value*SQRT(0.125_DP)) + &
+            3.0_DP*delta_value*nval*SQRT(0.125_DP))*SQRT(nval+1.0_DP)
+       !
+    ENDDO
+    !
+    !$OMP SECTION
+#if _OPENMP
+    IF (Iprint > 1) WRITE(*,*) "Operator number 7 :: (a^d)**3, Thread Number ", OMP_GET_THREAD_NUM() 
+#else
+    IF (Iprint > 1)  WRITE(*,*) "Operator number 7 :: (a^d)**3"
+#endif
+    !
+    DO state_index = 1, N_val - 3
+       !
+       nval = REAL(state_index-1,DP)
+       Ham_quartic_mat(state_index, state_index + 3) = Ham_quartic_mat(state_index, state_index + 3) + &
+            delta_value*SQRT(0.125_DP)*SQRT((nval+1.0_DP)*(nval+2.0_DP)*(nval+3.0_DP))
        !
     ENDDO
     !
@@ -369,7 +386,7 @@ CONTAINS
   END SUBROUTINE QUARTIC_HAMILTONIAN_HO
   !
   SUBROUTINE Convergence_check(dim, dim_step, delta_energy, num_states, &
-       alpha_value, beta_value, gamma_value)
+       alpha_value, beta_value, gamma_value, delta_value)
     !
     ! Check enegy convergence. Criterion: |E_calc(dim1) - E_calc(dim1+delta_energy)| < delta_energy for the first num_states states
     !
@@ -401,7 +418,7 @@ CONTAINS
     INTEGER(KIND=I4B), INTENT(INOUT) :: dim
     INTEGER(KIND=I4B), INTENT(IN) :: dim_step, num_states
     REAL(KIND = DP), INTENT(IN) :: delta_energy
-    REAL(KIND = DP), INTENT(IN) :: alpha_value, beta_value, gamma_value
+    REAL(KIND = DP), INTENT(IN) :: alpha_value, beta_value, gamma_value, delta_value
     !
     ! Local Variables
     REAL(KIND = DP), DIMENSION(:,:), ALLOCATABLE :: Ham_mat_sub
@@ -435,7 +452,7 @@ CONTAINS
     Ham_aval_sub = 0.0_DP
     !
     ! BUILD HAMILTONIAN
-    CALL QUARTIC_HAMILTONIAN_HO(dim, Ham_mat_sub, alpha_value, beta_value, gamma_value)
+    CALL QUARTIC_HAMILTONIAN_HO(dim, Ham_mat_sub, alpha_value, beta_value, gamma_value, delta_value)
     !      
     ! Diagonalize Hamiltonian matrix (LAPACK95)
 #ifdef  __GFORTRAN__
@@ -498,7 +515,7 @@ CONTAINS
        ENDIF
        !
        ! BUILD HAMILTONIAN
-       CALL QUARTIC_HAMILTONIAN_HO(dim_val, Ham_mat_sub, alpha_value, beta_value, gamma_value)
+       CALL QUARTIC_HAMILTONIAN_HO(dim_val, Ham_mat_sub, alpha_value, beta_value, gamma_value, delta_value)
        ! Diagonalize Hamiltonian matrix (LAPACK95)
 #ifdef  __GFORTRAN__
        ! gfortran

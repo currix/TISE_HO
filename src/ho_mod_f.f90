@@ -22,7 +22,8 @@ MODULE ho_mod_f
   !
 CONTAINS
   !
-  SUBROUTINE EIGENVEC_X(dim, s_value, alpha_value, beta_value, gamma_value, eigenval_vec, eigenvec_mat, Iprint)
+  SUBROUTINE EIGENVEC_X(dim, s_value, alpha_value, beta_value, gamma_value, delta_value, &
+       eigenval_vec, eigenvec_mat, Iprint)
     !
     ! Subroutine to build and save the space dependence of the first avec_X_states  eigenvectors
     !
@@ -31,7 +32,7 @@ CONTAINS
     ! Dimension of the Harmonic Basis
     INTEGER(KIND = I4B), INTENT(IN) :: dim
     ! Length Scale and scaled Hamiltonian parameters of the problem
-    REAL(KIND = DP), INTENT(IN) ::  s_value, alpha_value, beta_value, gamma_value
+    REAL(KIND = DP), INTENT(IN) ::  s_value, alpha_value, beta_value, gamma_value, delta_value
     ! Eigenvalues matrix
     REAL(KIND = DP), DIMENSION(:), ALLOCATABLE, INTENT(IN) :: eigenval_vec
     ! Eigenvectors matrix
@@ -86,12 +87,14 @@ CONTAINS
        write(30,*) X_grid(X_index), (avec_Har_X(X_index, state_index), state_index = 1, avec_X_states)
        !
        write(35,*) X_grid(X_index), &
-            alpha_value*X_grid(X_index)**4 + beta_value*X_grid(X_index)**2 + gamma_value*X_grid(X_index), &
+            alpha_value*X_grid(X_index)**4 + beta_value*X_grid(X_index)**2 + &
+            gamma_value*X_grid(X_index) + delta_value*X_grid(X_index)**3, &
             (eigenval_vec(state_index) + &
             wf_scaling*avec_Har_X(X_index, state_index), state_index = 1, avec_X_states)
        !
        write(40,*) X_grid(X_index), &
-            alpha_value*X_grid(X_index)**4 + beta_value*X_grid(X_index)**2 + gamma_value*X_grid(X_index), &
+            alpha_value*X_grid(X_index)**4 + beta_value*X_grid(X_index)**2 + &
+            gamma_value*X_grid(X_index) + delta_value*X_grid(X_index)**3, &
             (eigenval_vec(state_index) + &
             wf_scaling*avec_Har_X(X_index, state_index)**2, state_index = 1, avec_X_states)
        !
