@@ -22,6 +22,8 @@ MODULE quartic_HO
   !
   ! Arrays
   REAL(KIND = DP), DIMENSION(:,:), ALLOCATABLE :: Ham_quartic_mat ! Hamiltonian matrix
+  !
+  ! Vectors
   REAL(KIND = DP), DIMENSION(:), ALLOCATABLE :: eigenval_vec ! Hamiltonian Eigenvalues
   REAL(KIND = DP), DIMENSION(:), ALLOCATABLE :: emean_vec ! Mean energy value of each two eigenstates
   REAL(KIND = DP), DIMENSION(:), ALLOCATABLE :: omegaeff_vec ! Energy increment for adjancent levels
@@ -33,7 +35,7 @@ MODULE quartic_HO
   !
   ! Benchmarking variables
   LOGICAL :: benchmark ! If .T. carry out benchmark calculations
-  INTEGER(KIND = I4B) :: benchmark_total_iter = 100, benchmark_iter
+  INTEGER(KIND = I4B) :: benchmark_total_iter, benchmark_iter
   REAL(KIND = SP) :: time_check, time_check_ref
   REAL(KIND = DP), DIMENSION(:), ALLOCATABLE :: benchmark_MFLOPS
   REAL(KIND = DP) :: mean_Mflops, std_Mflops
@@ -58,7 +60,7 @@ MODULE quartic_HO
   CHARACTER(LEN=75) :: file_name
   !
   ! OpenMP Definitions
-  INTEGER(KIND = I4B) :: N_threads = 1
+  INTEGER(KIND = I4B) :: N_threads = 1_I4B
   !
 CONTAINS
   !
@@ -603,7 +605,9 @@ CONTAINS
          expected_n_vec, expected_x_vec, expected_x2_vec
     !
     ! Local variables
-    INTEGER(KIND = I4B) state_index
+    INTEGER(KIND = I4B) state_index, n13_value, n_value
+    REAL(KIND = DP), DIMENSION(1:2*dim-1) :: Term_1
+    REAL(KIND = DP), DIMENSION(1:dim) :: Term_2
     !
     ! emean omega_eff
     DO state_index = 1, n_states-1
@@ -611,8 +615,28 @@ CONTAINS
        omegaeff_vec(state_index) = eigenval_vec(state_index+1) - eigenval_vec(state_index)
     ENDDO
     !
+    ! Preliminary Calculations for Husimi
+
+    !
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(n13_value) &
+    !$OMP & SHARED(dim, Term_1)
+    DO n13_value = 0, 2*dim-2
+       Term_1(n13_value + 1) = -(REAL(n13_value, DP) + 1.0_DP)*LOG(2.0_DP) + loggamma(n13_value + 1.0_DP)
+    END DO
+    !$OMP END PARALLEL DO
+    !
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(n_value) &
+    !$OMP & SHARED(dim, Term_2)
+    DO n_value = 0, dim-1
+       Term_2(n_value + 1) = 0.5_DP*loggamma(REAL(n_value, DP) + 1.0_DP)
+    END DO
+    !$OMP END PARALLEL DO
+    !
+    !  CALCULATIONS
+    !
     !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(state_index) &
-    !$OMP & SHARED(dim, n_states, eigenvec_arr, ipr_vec, Husimi_ipr_vec, expected_n_vec, expected_x_vec, expected_x2_vec, Iprint)
+    !$OMP & SHARED(dim, n_states, eigenvec_arr, ipr_vec, Husimi_ipr_vec, expected_n_vec, expected_x_vec, expected_x2_vec, &
+    !$OMP & Term_1, Term_2, Iprint)
     !
     ! ipr, Husimi, <n>, <x>, and <x2>
     DO state_index = 1, n_states
@@ -624,8 +648,7 @@ CONTAINS
 #endif
        !
        ipr_vec(state_index) = Inv_Part_Ratio(eigenvec_arr(:,state_index))
-       !       Husimi_ipr_vec(state_index) = IPR_Husimi(dim, eigenvec_arr(:,state_index))
-       Husimi_ipr_vec(state_index) = 0.0_DP
+       Husimi_ipr_vec(state_index) = IPR_Husimi(dim, eigenvec_arr(:,state_index), Term_1, Term_2)
        expected_n_vec(state_index) = Exp_Value_n(dim, eigenvec_arr(:,state_index))
        expected_x_vec(state_index) = Exp_Value_x(dim, eigenvec_arr(:,state_index))
        expected_x2_vec(state_index) = Exp_Value_x2(dim, eigenvec_arr(:,state_index))
@@ -636,78 +659,93 @@ CONTAINS
   END SUBROUTINE Calculations_Sc
   !
   !
-  FUNCTION IPR_Husimi(dim, eigenvec)
+  FUNCTION IPR_Husimi(dim, eigenvec, Vec_Gamma_1, Vec_Gamma_2)
     ! 
     ! Function to compute the IPR for cusp eigenvectors in a HO basis
     !
     IMPLICIT NONE
     !
+    ! HO Basis dimension
     INTEGER(KIND=I4B), INTENT(IN) :: dim
-    REAL(KIND = DP), DIMENSION(:) :: eigenvec
+    ! Eigenvector components
+    REAL(KIND = DP), DIMENSION(:), INTENT(IN) :: eigenvec
+    ! Vector Log 2^-(n_1+n_3+1) * Gamma(n_1 + n_3 + 1) 
+    REAL(KIND = DP), DIMENSION(:), INTENT(IN) :: Vec_Gamma_1
+    ! Vector Log SQRT(Gamma(n_k +1))
+    REAL(KIND = DP), DIMENSION(:), INTENT(IN) :: Vec_Gamma_2
     !
     REAL(KIND=DP) :: IPR_Husimi
     !
     ! Local variables
     INTEGER(KIND = I4B) n_1, n_2, n_3, n_4
+    REAL(KIND=DP) :: factor_n1, factor_n12
     !
     IPR_Husimi = 0.0_DP
     !
-    ! TODO Can be optimized n4 = n1+n3-n2, remove a cycle and split the operations in the cycle
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(n_1, n_2, n_3, n_4, factor_n1, factor_n12) &
+    !$OMP & SHARED(dim, eigenvec, Vec_Gamma_1, Vec_Gamma_2)
     DO n_1 = 0, dim-1
+       factor_n1 = eigenvec(n_1+1)
+       !
        DO n_2 = 0, dim-1
+          factor_n12 = factor_n1*eigenvec(n_2+1)
+          !
           DO n_3 = 0, dim-1
-             DO n_4 = 0, dim-1
-                !
-                IF (n_1+n_3 /= n_2+n_4) CYCLE
-                !
-                IPR_Husimi = IPR_Husimi + &
-                     eigenvec(n_1+1)*eigenvec(n_2+1)*eigenvec(n_3+1)*eigenvec(n_4+1) * &
-                     gamma_quot_ipr((/n_1,n_2,n_3,n_4/))
-                !
-             ENDDO
+             n_4 = n_1 + n_3 - n_2
+             !             
+             IF (n_4 < 0 .OR. n_4 > dim-1) CYCLE
+             !
+             IPR_Husimi = IPR_Husimi + &
+                  factor_n12*eigenvec(n_3+1)*eigenvec(n_4+1) * &
+                  EXP( &
+                  Vec_Gamma_1(n_1 + n_3 + 1_I4B) - &
+                  (Vec_Gamma_2(n_1 + 1_I4B) + Vec_Gamma_2(n_2 + 1_I4B) + Vec_Gamma_2(n_3 + 1_I4B) + Vec_Gamma_2(n_4 + 1_I4B)) &
+                  )
+                  !                  gamma_quot_ipr((/n_1,n_2,n_3,n_4/))
+             !
           ENDDO
        ENDDO
     ENDDO
     !
   END FUNCTION IPR_HUSIMI
   !
-  !
-  FUNCTION gamma_quot_ipr(nvals)
-    !
-    ! 2^-(n_1+n_3+1) * Gamma(n_1 + n_3 + 1) / \prod_{k = 1}^4 SQRT(Gamma(n_k +1))
-    !
-    ! TODO can be optimized calculating and saving factor values. Change arguments structure (n1+n3, 
-    !
-    IMPLICIT NONE
-    !
-    INTEGER(KIND = I4B), DIMENSION(1:4), INTENT(IN) :: nvals
-    !
-    REAL(KIND = DP) :: gamma_quot_ipr
-    !
-    ! Local variables
-    !
-    INTEGER(KIND = I4B) :: index
-    REAL(KIND = DP), DIMENSION(1:4) :: z
-    REAL(KIND = DP) :: Term_1!, Term_2
-    !
-    z = REAL(nvals, DP)
-    !
-    Term_1 = -(z(1) + z(3) + 1.0_DP)*LOG(2.0_DP)
-    !
-    Term_1 = Term_1 + loggamma(z(1) + z(3) + 1.0_DP)
-    !
-    !
-    !Term_2 = 0.0_DP
-    !
-    DO index = 1, 4
-       !
-       Term_1 = Term_1 - loggamma(z(index) + 1.0_DP)/2.0_DP
-       !
-    ENDDO
-    !
-    gamma_quot_ipr = EXP(Term_1)
-    !
-  END FUNCTION gamma_quot_ipr
+  ! !
+  ! FUNCTION gamma_quot_ipr(nvals)
+  !   !
+  !   ! 2^-(n_1+n_3+1) * Gamma(n_1 + n_3 + 1) / \prod_{k = 1}^4 SQRT(Gamma(n_k +1))
+  !   !
+  !   ! TODO can be optimized calculating and saving factor values. Change arguments structure (n1+n3, 
+  !   !
+  !   IMPLICIT NONE
+  !   !
+  !   INTEGER(KIND = I4B), DIMENSION(1:4), INTENT(IN) :: nvals
+  !   !
+  !   REAL(KIND = DP) :: gamma_quot_ipr
+  !   !
+  !   ! Local variables
+  !   !
+  !   INTEGER(KIND = I4B) :: index
+  !   REAL(KIND = DP), DIMENSION(1:4) :: z
+  !   REAL(KIND = DP) :: Term_1!, Term_2
+  !   !
+  !   z = REAL(nvals, DP)
+  !   !
+  !   Term_1 = -(z(1) + z(3) + 1.0_DP)*LOG(2.0_DP)
+  !   !
+  !   Term_1 = Term_1 + loggamma(z(1) + z(3) + 1.0_DP)
+  !   !
+  !   !
+  !   !Term_2 = 0.0_DP
+  !   !
+  !   DO index = 1, 4
+  !      !
+  !      Term_1 = Term_1 - loggamma(z(index) + 1.0_DP)/2.0_DP
+  !      !
+  !   ENDDO
+  !   !
+  !   gamma_quot_ipr = EXP(Term_1)
+  !   !
+  ! END FUNCTION gamma_quot_ipr
   !
   !
   FUNCTION loggamma(z)
