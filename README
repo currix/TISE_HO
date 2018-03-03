@@ -12,7 +12,11 @@ computes:
 Eigenvalues
 Eigenstates
 Participation Ratio
-Expected values <X> and <X^2>
+Husimi Participation Ratio
+Expected values of <n>, <X>, and <X^2>
+Space dependence of Eigenstates psi(X)
+
+Requirements: LAPACK95 and intlib
 
 Install
 
@@ -23,6 +27,16 @@ $ make all
 Programs
 
 quartic_HO_energies_gfortran
+quartic_HO_energies_openmp_gfortran (multiprocessor version)
+
+If ifort is installed the program can be compiled as
+
+$ make -f Makefile_ifort all
+
+and the programs will be
+
+quartic_HO_energies_ifort
+quartic_HO_energies_openmp_ifort (multiprocessor version)
 
 
 The program user's guide will be found in the doc directory in pdf,
