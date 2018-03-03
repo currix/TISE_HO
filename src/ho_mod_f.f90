@@ -22,7 +22,8 @@ MODULE ho_mod_f
   !
 CONTAINS
   !
-  SUBROUTINE EIGENVEC_X(dim, s_value, alpha_value, beta_value, gamma_value, delta_value, &
+  SUBROUTINE EIGENVEC_X(dim, s_value, &
+       alpha_value, beta_value, gamma_value, delta_value, &
        eigenval_vec, eigenvec_mat, Iprint)
     !
     ! Subroutine to build and save the space dependence of the first avec_X_states  eigenvectors
