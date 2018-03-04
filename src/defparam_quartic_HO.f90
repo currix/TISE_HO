@@ -615,30 +615,29 @@ CONTAINS
        omegaeff_vec(state_index) = eigenval_vec(state_index+1) - eigenval_vec(state_index)
     ENDDO
     !
-    ! Preliminary Calculations for Husimi
-
     !
-    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(n13_value) &
-    !$OMP & SHARED(dim, Term_1)
+    !$OMP PARALLEL DEFAULT(NONE) PRIVATE(n13_value, n_value, state_index) &
+    !$OMP & SHARED(dim, Term_1, Term_2, n_states, eigenvec_arr, ipr_vec, Husimi_ipr_vec, expected_n_vec,  &
+    !$OMP & expected_x_vec, expected_x2_vec, Iprint)
+    !
+    ! Preliminary Calculations for Husimi
+    !
+    !$OMP DO 
     DO n13_value = 0, 2*dim-2
        Term_1(n13_value + 1) = -(REAL(n13_value, DP) + 1.0_DP)*LOG(2.0_DP) + loggamma(n13_value + 1.0_DP)
     END DO
-    !$OMP END PARALLEL DO
+    !$OMP END DO
     !
-    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(n_value) &
-    !$OMP & SHARED(dim, Term_2)
+    !$OMP DO
     DO n_value = 0, dim-1
        Term_2(n_value + 1) = 0.5_DP*loggamma(REAL(n_value, DP) + 1.0_DP)
     END DO
-    !$OMP END PARALLEL DO
+    !$OMP END DO
     !
     !  CALCULATIONS
     !
-    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(state_index) &
-    !$OMP & SHARED(dim, n_states, eigenvec_arr, ipr_vec, Husimi_ipr_vec, expected_n_vec, expected_x_vec, expected_x2_vec, &
-    !$OMP & Term_1, Term_2, Iprint)
-    !
     ! ipr, Husimi, <n>, <x>, and <x2>
+    !$OMP DO
     DO state_index = 1, n_states
 #if _OPENMP
        IF (Iprint > 1) WRITE(*,*) "ipr, Husimi, <n>, <x>, and <x2>, state ", state_index, &
@@ -653,8 +652,9 @@ CONTAINS
        expected_x_vec(state_index) = Exp_Value_x(dim, eigenvec_arr(:,state_index))
        expected_x2_vec(state_index) = Exp_Value_x2(dim, eigenvec_arr(:,state_index))
     ENDDO
+    !$OMP END DO 
     !
-    !$OMP END PARALLEL DO 
+    !$OMP END PARALLEL
     !
   END SUBROUTINE Calculations_Sc
   !
