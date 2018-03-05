@@ -529,7 +529,7 @@ CONTAINS
        !
        IF (Iprint > 1) THEN
           WRITE(UNIT = *, FMT = *) "Dimension = ", dim_val
-          WRITE(UNIT = *, FMT = *) ABS(Ham_aval_0 - Ham_aval_sub(1:num_states))
+          WRITE(UNIT = *, FMT = *) "Energy Differences = ", ABS(Ham_aval_0 - Ham_aval_sub(1:num_states))
        ENDIF
        !
        IF (ANY(ABS(Ham_aval_0 - Ham_aval_sub(1:num_states)) >  delta_energy)) THEN

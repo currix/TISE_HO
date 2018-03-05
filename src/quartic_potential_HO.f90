@@ -274,9 +274,9 @@ PROGRAM quartic_eigensystem_HO
 6 FORMAT(1X, " Convergence search on. ", " convergence = ", L2, "; dim_step = ", I4, "; delta_energy = ", ES14.7)
 10 FORMAT(1X, "Reading  HO_Dimension, benchmark, benchmark_total_iter")
 15 FORMAT(1X, "HO_Dimension = ", I6, " benchmark = ", L2, " benchmark_total_iter = ", I6)
-20 FORMAT(1X, "Reading  kval, aval, bval")
+20 FORMAT(1X, "Reading  sval, aval, bval, cval, dval")
 25 FORMAT(1X, "s_value = ", ES14.7, "; A_value = ", ES14.7, /, &
-        "B_value = ", ES14.7, "; C_value = ", ES14.7)
+        "B_value = ", ES14.7, "; C_value = ", ES14.7, "; D_value = ", ES14.7)
 30 FORMAT(1X, "Reading avec_X_calc, avec_X_states, X_min, X_max, dim_X ")
 35 FORMAT(1X, "avec_X_calc = ", L2, "; avec_X_states = ", I6, "; X_min = ", ES14.7, &
         "; X_max = ", ES14.7, "; dim_X = ", ES14.7) 

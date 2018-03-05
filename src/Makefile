@@ -11,6 +11,12 @@ quartic_HAM_HO_OBJ = $(quartic_HAM_HO_SRC:.f90=.o)
 #
 quartic_HAM_HO_OPENMP_OBJ = $(quartic_HAM_HO_SRC:.f90=.oOMP)
 ####################################################################
+quartic_HAM_HO_EIGENVAL_SRC = nrtype.f90 defparam_quartic_HO.f90 ho_mod_f.f90 quartic_potential_HO_eigenval.f90
+#
+quartic_HAM_HO_EIGENVAL_OBJ = $(quartic_HAM_HO_EIGENVAL_SRC:.f90=.o)
+#
+quartic_HAM_HO_EIGENVAL_OPENMP_OBJ = $(quartic_HAM_HO_EIGENVAL_SRC:.f90=.oOMP)
+####################################################################
 #
 .SUFFIXES: .o .f90 .oOMP 
 ###
@@ -27,7 +33,7 @@ LIB_INTLIB = -lintlib
 #
 LIBS     = $(LAPACK95)  $(LAPACK77) $(BLAS) $(LIB_INTLIB)
 ######################################################################################################
-all: quartic_HO_energies quartic_HO_energies_openmp
+all: quartic_HO quartic_HO_openmp quartic_HO_energies quartic_HO_energies_openmp
 #################################################################
 .PHONY : all
 #################################################################
@@ -42,20 +48,31 @@ all: quartic_HO_energies quartic_HO_energies_openmp
 	$(FC) -c -fopenmp $(PREP) $(MODLIB) -o "$@" "$<"
 #################################################################
 #######################
-quartic_HO_energies: $(quartic_HAM_HO_OBJ) Makefile 
+quartic_HO: $(quartic_HAM_HO_OBJ) Makefile 
 	$(info )
-	$(info Linking quartic_HO_energies single thread executable:)
+	$(info Linking quartic_HO single thread executable:)
 	$(FC) $(FOPT) $(MODLIB) -o $(BINPATH)/$@_$(FC) $(quartic_HAM_HO_OBJ) $(LIBS) 
 #######################
-quartic_HO_energies_openmp: $(quartic_HAM_HO_OPENMP_OBJ) Makefile 
+quartic_HO_openmp: $(quartic_HAM_HO_OPENMP_OBJ) Makefile 
+	$(info )
+	$(info Linking quartic_HO multi thread executable:)
+	$(FC) -fopenmp $(FOPT) $(MODLIB) -o $(BINPATH)/$@_$(FC) $(quartic_HAM_HO_OPENMP_OBJ) $(LIBS) 
+#######################
+#######################
+quartic_HO_energies: $(quartic_HAM_HO_EIGENVAL_OBJ) Makefile 
+	$(info )
+	$(info Linking quartic_HO_energies single thread executable:)
+	$(FC) $(FOPT) $(MODLIB) -o $(BINPATH)/$@_$(FC) $(quartic_HAM_HO_EIGENVAL_OBJ) $(LIBS) 
+#######################
+quartic_HO_energies_openmp: $(quartic_HAM_HO_EIGENVAL_OPENMP_OBJ) Makefile 
 	$(info )
 	$(info Linking quartic_HO_energies multi thread executable:)
-	$(FC) -fopenmp $(FOPT) $(MODLIB) -o $(BINPATH)/$@_$(FC) $(quartic_HAM_HO_OPENMP_OBJ) $(LIBS) 
+	$(FC) -fopenmp $(FOPT) $(MODLIB) -o $(BINPATH)/$@_$(FC) $(quartic_HAM_HO_EIGENVAL_OPENMP_OBJ) $(LIBS) 
 #######################
 #######################
 clean:
 	$(info Cleaning object, module, and executable files.)
-	@rm -f  *.o *.mod $(BINPATH)/quartic_HO_energies_$(FC) $(BINPATH)/quartic_HO_energies_openmp_$(FC)
+	@rm -f  *.o *.mod $(BINPATH)/quartic_HO_$(FC) $(BINPATH)/quartic_HO_openmp_$(FC) $(BINPATH)/quartic_HO_energies_$(FC) $(BINPATH)/quartic_HO_energies_openmp_$(FC)
 #######################
 
 

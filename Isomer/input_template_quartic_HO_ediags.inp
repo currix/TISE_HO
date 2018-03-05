@@ -1,0 +1,7 @@
+#
+#       INPUT FILE FOR Quartic Potential Hamiltonian
+#
+&par_aux Iprint = 0, excitation = .F., save_output=.F., output_states = 8, convergence = .F., dim_step = 10, delta_energy = 1.0E-6    /
+&par_0   HO_dimension = 50, benchmark = .F., benchmark_total_iter = 10 /
+&par_1   s_value = 1.0,   A_value = 0.2,   B_value = -16.0,   C_value = 10.0,  D_value = 0.0 /
+

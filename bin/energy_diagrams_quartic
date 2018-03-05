@@ -1,0 +1,160 @@
+#!/usr/bin/perl
+#
+# perl program to calculate energy diagrams
+# for a quartic Hamiltonian in a 
+# parameter value interval
+#
+#  by Currix TM.
+#
+use strict;
+use warnings;
+#
+use Getopt::Std;
+#
+# Switches:
+my %options;
+getopts("EIvhc:e:p:",\%options);
+#
+#
+use File::Temp qw/ tempfile /;
+#
+# bin files path
+my $binpath = "~/PR_Fortran/1D_Potential_HO_Basis/bin";
+#
+(my $prgname) = $0 =~ m#.*/(.+$)#;
+#
+my $usemessage = <<"EOF";
+
+Usage: $prgname [-vh] [-e progpath] [-c dimstep] -p parname dimval u_states pmin pmax pstep inputfile
+       
+
+  Options:
+    v : verbose output
+    h : help message
+    e : provide the path to executable fortran files
+    c : check energy convergence with step dimstep in dimval
+    p : parameter name (A, B, C, or D)
+
+EOF
+## 
+die "\n\tPerl script to calculate the spectrum of the u_states first eigenvalues (g.s. -> u = 1) of 
+a quartic Hamiltonian in a given control parameter value interval with the input values taken from inputfile.
+ 
+
+\n\n by Currix TM\n$usemessage" if ($options{"h"});
+#
+my $inputfile;
+my ($dimval,$pval);
+my ($u,$pmin,$pmax,$pstep);
+my @output;
+my $dimstep;
+#
+#
+#
+my $program;
+if ($options{"e"}) {
+    $program = $options{"e"};
+} else {
+    # Default program name
+    $program = "$binpath/quartic_HO_energies_gfortran";
+}
+#
+print "Executable program: $program \n" if ($options{"v"});
+#
+#
+die "$usemessage" if ($#ARGV!=5);
+($dimval,$u,$pmin,$pmax,$pstep,$inputfile) = @ARGV;
+# Check if $u >= 0
+die "\n\tError. The u_states argument is less than or equal to zero.\n\t For more info execute $prgname -h\n" if ($u <= 0);
+#
+print "\tdim = $dimval\n\tu: $u\n\n\tpmin: $pmin\n\n\tpmax: $pmax\n\n\tpstep: $pstep\n\n" if ($options{"v"});
+#
+if ($options{"c"}) {
+    $dimstep = $options{"c"}; 
+    print "\tConvergence check with dim_0 = $dimval, dimstep = $dimstep for $u states.\n\n" if ($options{"v"});
+}
+#
+open INPUTF, "<$inputfile" or die "$!";
+my $ifile_content; 
+while (<INPUTF>) {
+    $ifile_content .= $_;
+}; 
+close INPUTF;
+print "initial input :: $ifile_content\n" if ($options{"v"});
+#
+$pval = $pmin;
+#
+#
+while ($pval <= $pmax) {
+  print "\tpval = $pval\n" if ($options{"v"});
+  #
+  @output = &runprog($dimval,$u,$pval);
+  #
+  print "----------------\nProgram output:\n @output\n-------------\n" if ($options{"v"});
+  #
+  printf("%e ",$pval);
+  #
+  #   Check how many states will be printed
+  foreach (1..$u) {
+    my @columns = split ' ', $output[$_-1];
+    print $columns[1]," ";
+  }
+  #
+  print "\n";
+  #
+  $pval+=$pstep;
+}
+###################################################################
+#    SUBROUTINES
+###################################################################
+sub runprog {
+  my ($dimval,$u,$pval) = @_;
+  # Temporary input file
+  my ($fh, $name) = tempfile("currixXXXX", DIR => "");
+  #
+  my ($prefile,$postfile,$newfile);
+  my $par_sci = sprintf("%e",$pval);
+  #
+  # Change dimension value
+  ($prefile,$postfile) = $ifile_content =~/(.*HO_dimension\s*=\s+).*(,\s*benchmark.*)/s;
+  $newfile = $prefile.$dimval." ".$postfile;
+  #
+  # Change number of states value
+  ($prefile,$postfile) = $newfile =~/(.*output_states\s*=\s+).*(,\s*convergence.*)/s;
+  $newfile = $prefile.$u." ".$postfile;
+  #
+  # Include convergence check
+  if ($options{"c"}) {
+    ($prefile,$postfile) = $newfile =~/(.*convergence\s*=\s+).*(,\s*dim_step.*)/s;
+    $newfile = $prefile.".T.".$postfile;
+    ($prefile,$postfile) = $newfile =~/(.*dim_step\s*=\s+).*(,\s*delta_energy.*)/s;
+    $newfile = $prefile.$options{"c"}.$postfile;
+  }
+  #
+  if ($options{"p"} =~ /A/i) {
+    ($prefile,$postfile) = $newfile =~/(.*A_value\s*=\s+).*(,\s*B_value.*)/s;
+  } elsif  ($options{"p"} =~ /B/i) {
+    ($prefile,$postfile) = $newfile =~/(.*B_value\s*=\s*).*(,\s*C_value.*)/s;
+  } elsif  ($options{"p"} =~ /C/i) {
+    ($prefile,$postfile) = $newfile =~/(.*C_value\s*=\s*).*(,\s*D_value.*)/s;
+  } elsif  ($options{"p"} =~ /B/i) {
+    ($prefile,$postfile) = $newfile =~/(.*D_value\s*=\s*).*(\s*\/)/s;
+  }
+  $newfile = $prefile.$par_sci.$postfile;
+  #
+  print $fh "$newfile";
+  print "$newfile\n" if ($options{"v"});
+  #
+  #
+  my @output =  `$program < $name`;
+  #
+  unlink($name) or die "Couldn't unlink $name : $!\n";
+  #
+  @output;
+}
+
+
+
+
+
+
